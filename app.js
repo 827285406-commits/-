@@ -5,6 +5,7 @@ const answerView = document.querySelector("#answerView");
 const fileInput = document.querySelector("#fileInput");
 const uploadResult = document.querySelector("#uploadResult");
 const attachmentList = document.querySelector("#attachmentList");
+const statGrid = document.querySelector(".statGrid");
 
 const builtInDocs = [
   {
@@ -66,6 +67,9 @@ const builtInDocs = [
 ];
 
 let userDocs = [];
+let indexedDocs = [];
+let indexedChunkCount = 0;
+let indexReady = false;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -85,38 +89,172 @@ function tokenize(text) {
     const pair = lowered.slice(index, index + 2);
     if (/^[\u4e00-\u9fff]{2}$/.test(pair)) bigrams.push(pair);
   }
-  return [...latin, ...cjk, ...bigrams].filter(Boolean);
+  return [...latin, ...cjk, ...bigrams].filter((token) => !["需要", "是否", "什么", "怎么", "办理"].includes(token));
+}
+
+function queryExpansions(question) {
+  const words = [];
+  if (question.includes("校内转账") || question.includes("转账")) words.push("资金往来", "内部", "单位内部", "结算", "票据", "凭证", "财务", "往来结算票据");
+  if (question.includes("发票")) words.push("票据", "原始凭证", "财务", "电子票据", "纸质票据");
+  if (question.includes("报销")) words.push("票据", "单据", "凭证", "财务", "审核");
+  return words;
+}
+
+function scoreText(question, haystack, keywords = []) {
+  const expanded = `${question} ${queryExpansions(question).join(" ")}`;
+  const queryTokens = tokenize(expanded);
+  let score = 0;
+  for (const token of queryTokens) {
+    if (!token) continue;
+    if (haystack.includes(token)) score += token.length > 1 ? 2 : 1;
+  }
+  for (const keyword of keywords) {
+    if (keyword && question.includes(keyword)) score += 10;
+  }
+  for (const exact of ["校内转账", "资金往来结算票据", "单位内部", "发票", "票据", "原始凭证", "财务处"]) {
+    if (question.includes(exact) && haystack.includes(exact)) score += 18;
+  }
+  return score;
 }
 
 function scoreDoc(question, doc) {
-  const queryTokens = tokenize(question);
   const haystack = `${doc.title} ${doc.department || ""} ${(doc.keywords || []).join(" ")} ${doc.text}`;
-  let score = 0;
-  for (const token of queryTokens) {
-    if (haystack.includes(token)) score += token.length > 1 ? 2 : 1;
-  }
-  for (const keyword of doc.keywords || []) {
-    if (keyword && question.includes(keyword)) score += 10;
-  }
+  let score = scoreText(question, haystack, doc.keywords || []);
   if (question.includes(doc.department || "__none__")) score += 8;
   return score;
 }
 
-function search(question) {
+function searchIndex(question, limit = 6) {
+  const hits = [];
+  for (const doc of indexedDocs) {
+    for (const chunk of doc.chunks || []) {
+      const haystack = `${doc.title} ${doc.department} ${chunk}`;
+      const score = scoreText(question, haystack);
+      if (score > 0) {
+        hits.push({
+          title: doc.title,
+          department: doc.department,
+          url: doc.url,
+          text: chunk,
+          score,
+          kind: "indexed",
+        });
+      }
+    }
+  }
+  hits.sort((a, b) => b.score - a.score);
+  const deduped = [];
+  const seen = new Set();
+  for (const hit of hits) {
+    const key = `${hit.title}:${hit.text.slice(0, 80)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(hit);
+    if (deduped.length >= limit) break;
+  }
+  return deduped;
+}
+
+function searchFallback(question) {
   return [...userDocs, ...builtInDocs]
-    .map((doc) => ({ ...doc, score: scoreDoc(question, doc) }))
+    .map((doc) => ({ ...doc, score: scoreDoc(question, doc), kind: doc.department === "临时上传资料" ? "user" : "builtin" }))
     .filter((doc) => doc.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 }
 
-function buildAnswer(question, hits) {
+function search(question) {
+  const indexHits = searchIndex(question);
+  if (indexHits.length) return indexHits;
+  return searchFallback(question);
+}
+
+function cleanSnippet(text) {
+  return String(text || "")
+    .replace(/来源网站[:：].+/g, "")
+    .replace(/原文链接[:：].+/g, "")
+    .replace(/抓取时间[:：].+/g, "")
+    .replace(/内容指纹[:：].+/g, "")
+    .replace(/[-#]{3,}/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 420);
+}
+
+function importantSentences(question, hits) {
+  const expandedTokens = tokenize(`${question} ${queryExpansions(question).join(" ")}`);
+  const selected = [];
+  const seen = new Set();
+  for (const hit of hits) {
+    const sentences = cleanSnippet(hit.text).split(/(?<=[。；;.!?])\s*/).filter((item) => item.length >= 12);
+    for (const sentence of sentences.length ? sentences : [cleanSnippet(hit.text)]) {
+      const score = expandedTokens.reduce((total, token) => total + (sentence.includes(token) ? 1 : 0), 0);
+      if (score <= 0 && selected.length) continue;
+      const key = sentence.slice(0, 80);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      selected.push({ sentence, source: hit.title, url: hit.url });
+      if (selected.length >= 4) return selected;
+    }
+  }
+  return selected;
+}
+
+function hasTransferInvoiceQuestion(question) {
+  return (question.includes("校内转账") || question.includes("转账")) && (question.includes("发票") || question.includes("票据") || question.includes("提交"));
+}
+
+function buildIndexedAnswer(question, hits) {
+  const points = importantSentences(question, hits);
+  const sourceLines = hits.slice(0, 4).map((hit, index) => `${index + 1}. ${hit.title}（${hit.department}）${hit.url ? `\n${hit.url}` : ""}`);
+  const confidence = hits[0]?.score >= 38 ? "高" : hits[0]?.score >= 18 ? "中" : "低";
+
+  if (hasTransferInvoiceQuestion(question)) {
+    const evidenceLines = points.map((item, index) => `${index + 1}. ${item.sentence}（来源：${item.source}）`);
+    return {
+      confidence,
+      answer: [
+        "结论",
+        "校内转账这类单位内部资金往来，检索到的规则指向“资金往来结算票据/会计核算原始凭证”，而不是普通商业发票。也就是说，通常不应简单按“提交发票”理解；应按校内财务系统要求提交校内转账记录、资金往来结算票据或相应电子/纸质票据凭证。具体经办仍以财务处当前系统口径为准。",
+        "",
+        "依据",
+        evidenceLines.join("\n") || "未能抽取到足够清晰的条文，请联系财务处复核。",
+        "",
+        "建议步骤",
+        "1. 在财务系统中选择校内转账或内部结算对应流程，不按普通对外报销发票流程直接处理。",
+        "2. 上传或关联系统生成的校内转账记录、资金往来结算票据、电子票据或其他原始凭证。",
+        "3. 如果系统仍要求发票字段，建议咨询财务审核老师确认该字段应上传哪类校内结算凭证。",
+      ].join("\n"),
+      sources: hits,
+    };
+  }
+
+  const evidenceLines = points.map((item, index) => `${index + 1}. ${item.sentence}（来源：${item.source}）`);
+  return {
+    confidence,
+    answer: [
+      "结论",
+      cleanSnippet(hits[0].text) || "已命中相关制度资料，但需要进一步核对原文。",
+      "",
+      "依据",
+      evidenceLines.join("\n") || sourceLines.join("\n"),
+      "",
+      "建议步骤",
+      "1. 先按命中的制度原文核对适用对象、办理时间、材料清单和审批层级。",
+      "2. 如果涉及系统提交，保留提交截图、审批记录和退回意见。",
+      "3. 制度条文与系统口径不一致时，以负责部门最新审核意见为准。",
+    ].join("\n"),
+    sources: hits,
+  };
+}
+
+function buildFallbackAnswer(question, hits) {
   if (!hits.length) {
     return {
       confidence: "低",
       answer: [
         "结论",
-        "暂时没有命中足够明确的制度线索。建议补充关键词，例如事项名称、人员类型、经费来源、办理阶段，或上传相关文本文件后再问。",
+        indexReady ? "暂时没有命中足够明确的制度线索。建议补充关键词，例如事项名称、人员类型、经费来源、办理阶段，或上传相关文本文件后再问。" : "知识库索引还在加载或加载失败，当前只能做基础分流建议。请刷新后再试。",
         "",
         "建议步骤",
         "1. 先确认事项属于教学、研究生、财务、采购、人事、学生事务还是信息化系统。",
@@ -130,20 +268,27 @@ function buildAnswer(question, hits) {
   const primary = hits[0];
   const confidence = primary.score >= 24 ? "高" : primary.score >= 12 ? "中" : "低";
   const sourceLines = hits.slice(0, 3).map((hit, index) => `${index + 1}. ${hit.title}（${hit.department || "临时上传资料"}）`);
-  const answer = [
-    "结论",
-    `这个问题最可能归口到：${primary.department || "你本次上传的资料"}。${primary.text}`,
-    "",
-    "建议步骤",
-    "1. 先核对适用对象、办理时间、材料清单和审批层级。",
-    "2. 如果涉及系统提交，保留提交截图、审批记录和退回意见。",
-    `3. 需要人工确认时，优先联系${primary.contact || "资料对应负责老师或部门"}。`,
-    "",
-    "依据",
-    sourceLines.join("\n"),
-  ].join("\n");
+  return {
+    confidence,
+    answer: [
+      "结论",
+      `这个问题最可能归口到：${primary.department || "你本次上传的资料"}。${primary.text}`,
+      "",
+      "建议步骤",
+      "1. 先核对适用对象、办理时间、材料清单和审批层级。",
+      "2. 如果涉及系统提交，保留提交截图、审批记录和退回意见。",
+      `3. 需要人工确认时，优先联系${primary.contact || "资料对应负责老师或部门"}。`,
+      "",
+      "依据",
+      sourceLines.join("\n"),
+    ].join("\n"),
+    sources: hits,
+  };
+}
 
-  return { confidence, answer, sources: hits };
+function buildAnswer(question, hits) {
+  if (hits.some((hit) => hit.kind === "indexed")) return buildIndexedAnswer(question, hits);
+  return buildFallbackAnswer(question, hits);
 }
 
 function renderFormattedAnswer(text) {
@@ -171,19 +316,23 @@ function renderFormattedAnswer(text) {
         html += "<ol>";
         listOpen = true;
       }
-      html += `<li>${escapeHtml(numbered[2])}</li>`;
+      html += `<li>${linkify(numbered[2])}</li>`;
       continue;
     }
     closeList();
-    html += `<p>${escapeHtml(line)}</p>`;
+    html += `<p>${linkify(line)}</p>`;
   }
   closeList();
   return html;
 }
 
+function linkify(value) {
+  return escapeHtml(value).replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+}
+
 function renderResult(result) {
   const sourceHtml = result.sources.length
-    ? `<div class="sourceBlock"><h3>命中资料</h3><ol class="sourceList">${result.sources.map((source) => `<li>${escapeHtml(source.title)}<br><span>${escapeHtml(source.department || "临时上传资料")} ${source.website ? `· ${source.website}` : ""}</span></li>`).join("")}</ol></div>`
+    ? `<div class="sourceBlock"><h3>命中资料</h3><ol class="sourceList">${result.sources.map((source) => `<li>${escapeHtml(source.title)}<br><span>${escapeHtml(source.department || "临时上传资料")} ${source.url ? `· <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">原文</a>` : source.website ? `· ${escapeHtml(source.website)}` : ""}</span></li>`).join("")}</ol></div>`
     : "";
 
   answerView.innerHTML = `
@@ -213,6 +362,29 @@ function readFileAsText(file) {
     reader.onerror = () => reject(reader.error || new Error("文件读取失败"));
     reader.readAsText(file, "utf-8");
   });
+}
+
+function updateStats() {
+  if (!statGrid) return;
+  statGrid.innerHTML = `
+    <div><strong>${indexedDocs.length || 7}</strong><span>${indexedDocs.length ? "官网制度" : "类常见事务"}</span></div>
+    <div><strong>${indexedChunkCount || "本次"}</strong><span>${indexedChunkCount ? "检索片段" : "文件可追加"}</span></div>
+  `;
+}
+
+async function loadIndex() {
+  try {
+    const response = await fetch("./search-index.json?v=20260707");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    indexedDocs = payload.documents || [];
+    indexedChunkCount = payload.chunkCount || 0;
+    indexReady = true;
+    updateStats();
+  } catch (error) {
+    uploadResult.textContent = "官网知识索引未加载成功，当前只能使用基础分流知识。";
+    updateStats();
+  }
 }
 
 fileInput.addEventListener("change", async () => {
@@ -250,10 +422,10 @@ fileInput.addEventListener("change", async () => {
 
 sampleButton.addEventListener("click", () => {
   const samples = [
+    "校内转账需要提交发票吗？",
     "差旅报销需要准备哪些材料？",
     "研究生开题和中期考核应该找谁办理？",
     "采购仪器设备超过三万元要注意什么？",
-    "网页系统打不开应该联系哪个部门？",
   ];
   questionInput.value = samples[Math.floor(Math.random() * samples.length)];
   questionInput.focus();
@@ -263,3 +435,6 @@ askButton.addEventListener("click", ask);
 questionInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) ask();
 });
+
+updateStats();
+loadIndex();
