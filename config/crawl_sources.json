@@ -1,0 +1,161 @@
+{
+  "seeds": [
+    {
+      "name": "苏州大学官网规章制度",
+      "url": "https://rules.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学官网",
+      "url": "https://www.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学研究生院",
+      "url": "https://yjs.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学研究生招生",
+      "url": "https://yjs.suda.edu.cn/zsgz/list.htm"
+    },
+    {
+      "name": "苏州大学研究生培养",
+      "url": "https://yjs.suda.edu.cn/xjjx/list.htm"
+    },
+    {
+      "name": "苏州大学学位工作",
+      "url": "https://yjs.suda.edu.cn/xwgz/list.htm"
+    },
+    {
+      "name": "苏州大学财务处",
+      "url": "https://cwc.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学本科生院教务",
+      "url": "https://jwc.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学本科招生",
+      "url": "https://zsb.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学学生工作部",
+      "url": "https://xsc.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学人力资源处",
+      "url": "https://rsc.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学国际合作交流处",
+      "url": "https://international.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学科学技术研究院",
+      "url": "https://kjc.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学人文社会科学处",
+      "url": "https://rwsk.suda.edu.cn/"
+    },
+    {
+      "name": "苏州大学信息化建设与管理中心",
+      "url": "https://its.suda.edu.cn/"
+    }
+  ],
+  "allowed_hosts": [
+    "*.suda.edu.cn",
+    "suda.edu.cn"
+  ],
+  "policy_keywords": [
+    "规章制度",
+    "制度",
+    "办法",
+    "规定",
+    "细则",
+    "条例",
+    "规程",
+    "实施方案",
+    "管理办法",
+    "暂行办法",
+    "通知",
+    "公告",
+    "公示",
+    "办事指南",
+    "业务流程",
+    "办理流程",
+    "操作流程",
+    "申请流程",
+    "时间安排",
+    "日程安排",
+    "材料要求",
+    "申请条件",
+    "工作方案",
+    "工作通知",
+    "推免",
+    "推荐免试",
+    "免试研究生",
+    "硕士",
+    "博士",
+    "硕士研究生",
+    "博士研究生",
+    "研究生招生",
+    "博士招生",
+    "硕士招生",
+    "复试",
+    "调剂",
+    "录取",
+    "报名",
+    "考试",
+    "培养",
+    "学位",
+    "导师",
+    "开题",
+    "中期",
+    "答辩",
+    "学籍",
+    "课程",
+    "成绩",
+    "毕业",
+    "奖学金",
+    "助学金",
+    "资助",
+    "评奖评优",
+    "违纪处分",
+    "宿舍",
+    "就业",
+    "医保",
+    "人事",
+    "职称",
+    "聘任",
+    "考核",
+    "人才项目",
+    "经费",
+    "报销",
+    "收费",
+    "预算",
+    "财务",
+    "科研项目",
+    "采购",
+    "招标",
+    "合同",
+    "资产",
+    "设备",
+    "出国",
+    "国际交流",
+    "网络",
+    "信息化",
+    "账号",
+    "邮箱"
+  ],
+  "negative_keywords": [
+    "图片",
+    "视频",
+    "风采",
+    "媒体报道"
+  ],
+  "max_pages": 180,
+  "max_depth": 3,
+  "save_threshold": 2,
+  "link_threshold": 1,
+  "timeout_seconds": 8,
+  "polite_delay_seconds": 0.15
+}

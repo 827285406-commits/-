@@ -1,0 +1,24 @@
+﻿__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+
+# Local generated data and private uploads
+data/uploads/
+data/question_uploads/
+data/knowledge_index.json
+data/official_crawl_manifest.json
+knowledge/official_web/attachments/
+output/chrome-profile/
+output/edge-profile/
+output/*.log
+data/*.log
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+output/
+vendor/

@@ -1,0 +1,64 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>苏大制度政策 Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="/assets/logo.png" alt="苏大标识" />
+          <div>
+            <h1>制度政策 Agent</h1>
+            <p id="statusText">正在读取知识库...</p>
+          </div>
+        </div>
+
+        <section class="panel">
+          <h2>文档入库</h2>
+          <label class="uploadBox" for="fileInput">
+            <span>＋</span>
+            <strong>上传制度文件</strong>
+            <small>支持 txt、md、docx、pdf</small>
+          </label>
+          <input id="fileInput" type="file" multiple hidden />
+          <button id="reindexButton" class="secondaryButton">重新扫描 knowledge 文件夹</button>
+          <button id="crawlButton" class="secondaryButton">同步官网制度</button>
+          <div id="uploadResult" class="quiet"></div>
+        </section>
+
+        <section class="panel">
+          <h2>答复规范</h2>
+          <ul class="rules">
+            <li>优先依据已上传制度原文</li>
+            <li>问题带附件时优先分析附件内容</li>
+            <li>不能确定时提示负责部门复核</li>
+          </ul>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <div class="questionBar">
+          <textarea id="questionInput" rows="3" placeholder="请输入问题，也可以添加文件后提问"></textarea>
+          <div class="questionActions">
+            <label class="attachButton" for="questionFileInput" title="添加文件或图片">＋附件</label>
+            <input id="questionFileInput" type="file" multiple hidden accept=".txt,.md,.docx,.pdf,.csv,.json,.html,.htm,image/*" />
+            <button id="askButton">发送</button>
+          </div>
+          <div id="attachmentList" class="attachmentList"></div>
+        </div>
+
+        <div id="answerView" class="answerView">
+          <div class="emptyState">
+            <strong>可以直接提问，也可以带附件提问。</strong>
+            <span>文档会临时参与本次回答；图片可以上传保存，当前本地版暂不识别图片内容。</span>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
