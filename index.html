@@ -1,0 +1,70 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>王妍的苏大制度政策 Agent</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="./logo.png" alt="苏大制度政策 Agent 标识" />
+          <div>
+            <h1>制度政策 Agent</h1>
+            <p>王妍的随身政策检索页</p>
+          </div>
+        </div>
+
+        <section class="panel statsPanel">
+          <h2>知识范围</h2>
+          <div class="statGrid">
+            <div><strong>7</strong><span>类常见事务</span></div>
+            <div><strong>本次</strong><span>文件可追加</span></div>
+          </div>
+          <p class="quiet">此页面可放在 GitHub Pages 上随时打开。上传的文件只在当前浏览器里参与检索，不会传到服务器。</p>
+        </section>
+
+        <section class="panel">
+          <h2>添加临时资料</h2>
+          <label class="uploadBox" for="fileInput">
+            <span>+</span>
+            <strong>选择文本文件</strong>
+            <small>支持 txt、md、csv、json、html</small>
+          </label>
+          <input id="fileInput" type="file" multiple hidden accept=".txt,.md,.markdown,.csv,.json,.html,.htm" />
+          <div id="uploadResult" class="quiet"></div>
+        </section>
+
+        <section class="panel">
+          <h2>答复规范</h2>
+          <ul class="rules">
+            <li>优先提示制度依据和办理方向</li>
+            <li>不能确定时建议联系负责部门复核</li>
+            <li>复杂事项仍以学校最新通知为准</li>
+          </ul>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <div class="questionBar">
+          <textarea id="questionInput" rows="3" placeholder="请输入你的制度、流程、报销、学籍、奖助等问题"></textarea>
+          <div class="questionActions">
+            <button id="sampleButton" class="secondaryButton">示例</button>
+            <button id="askButton">发送</button>
+          </div>
+          <div id="attachmentList" class="attachmentList"></div>
+        </div>
+
+        <div id="answerView" class="answerView">
+          <div class="emptyState">
+            <strong>这里是可发布到 GitHub 的静态版。</strong>
+            <span>它能做基础政策检索和分流建议；需要完整知识库、官网同步、PDF/Word 解析时，请在本地运行 python app.py。</span>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
